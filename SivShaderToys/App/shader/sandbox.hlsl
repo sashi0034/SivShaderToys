@@ -46,6 +46,22 @@ SdfAndMat emptySdfAndMat()
     return result;
 }
 
+float2 rotate2d(float2 p, float angle)
+{
+    float c = cos(angle);
+    float s = sin(angle);
+    return float2(
+        p.x * c - p.y * s,
+        p.x * s + p.y * c
+    );
+}
+
+float smoothMin(float a, float b, float k)
+{
+    float h = clamp(0.5 + 0.5*(b - a)/k, 0.0, 1.0);
+    return lerp(b, a, h) - k*h*(1.0 - h);
+}
+
 float sdfSphere(float3 p, float r)
 {
     return length(p) - r;
@@ -59,29 +75,32 @@ float sdfBox(float3 p, float3 b)
 
 static float g_morphRate = 0;
 
-float2 rotate2d(float2 p, float angle)
+float sdfMorphSphereBox(float3 p, float r, float3 b, float rate)
 {
-    float c = cos(angle);
-    float s = sin(angle);
-    return float2(
-        p.x * c - p.y * s,
-        p.x * s + p.y * c
-    );
+    float dSphere = sdfSphere(p, r);
+    float dBox = sdfBox(p, b);
+    return lerp(dSphere, dBox, rate);
 }
 
 SdfAndMat scanSdf(float3 pos)
 {
     SdfAndMat result = emptySdfAndMat();
 
-    float dMorph;
+    float dMorph1;
     {
-        float3 tmp = pos;
+        float3 tmp = pos + float3(1, 1, 1) * 0.1;
         tmp.xy = rotate2d(tmp.xy, g_time * PI);
-        float dSphere = sdfSphere(tmp, 0.2);
-        float dBox = sdfBox(tmp - float3(0, 0, 0), float3(0.1, 0.1, 0.1));
-
-        dMorph = lerp(dSphere, dBox, g_morphRate);
+        dMorph1 = sdfMorphSphereBox(tmp, 0.2, float3(0.1, 0.1, 0.1), g_morphRate);
     }
+
+    float dMorph2;
+    {
+        float3 tmp = pos - float3(1, 1, 1) * 0.1;
+        tmp.xy = rotate2d(tmp.xy, -g_time * PI * 0.5);
+        dMorph2 = sdfMorphSphereBox(tmp, 0.2, float3(0.1, 0.1, 0.1), 1.0 - g_morphRate);
+    }
+
+    float dMorph = smoothMin(dMorph1, dMorph2, 0.1);
 
     if (dMorph < result.sdf)
     {
