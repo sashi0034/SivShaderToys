@@ -30,17 +30,28 @@ public:
 	}
 };
 
+struct SandboxData_cb1 {
+	Float2 g_resolution;
+	float g_time;
+};
+
 void Main()
 {
 	ShaderReloader reloader{};
 
 	Texture texture{};
 
+	ConstantBuffer<SandboxData_cb1> cb1{};
+
 	while (System::Update())
 	{
 		reloader.Update();
 
 		{
+			cb1->g_resolution = Float2(Scene::Size());
+			cb1->g_time = static_cast<float>(Scene::Time());
+			Graphics2D::SetPSConstantBuffer(1, cb1);
+
 			ScopedCustomShader2D scoped{ reloader.m_ps };
 			texture.resized(Scene::Size()).draw();
 		}
