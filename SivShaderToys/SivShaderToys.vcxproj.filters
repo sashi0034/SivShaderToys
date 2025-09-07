@@ -136,6 +136,9 @@
     <Filter Include="Resource Files\engine\font\min">
       <UniqueIdentifier>{1b103960-f11a-4515-b4f1-f59333ce00d9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource Files\asset">
+      <UniqueIdentifier>{d5e0d4a8-cb0b-462a-9c77-762e5d2ba5f1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -809,5 +812,10 @@
     <ClInclude Include="stdafx.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="App\shader\sandbox.hlsl">
+      <Filter>Resource Files\asset</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
