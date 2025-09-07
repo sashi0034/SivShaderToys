@@ -1,13 +1,4 @@
-//-----------------------------------------------
-//
-//	This file is part of the Siv3D Engine.
-//
-//	Copyright (c) 2008-2025 Ryo Suzuki
-//	Copyright (c) 2016-2025 OpenSiv3D Project
-//
-//	Licensed under the MIT License.
-//
-//-----------------------------------------------
+#define PI 3.14159265359
 
 //
 //	Textures
@@ -68,14 +59,30 @@ float sdfBox(float3 p, float3 b)
 
 static float g_morphRate = 0;
 
+float2 rotate2d(float2 p, float angle)
+{
+    float c = cos(angle);
+    float s = sin(angle);
+    return float2(
+        p.x * c - p.y * s,
+        p.x * s + p.y * c
+    );
+}
+
 SdfAndMat scanSdf(float3 pos)
 {
     SdfAndMat result = emptySdfAndMat();
 
-    float dSphere = sdfSphere(pos, 1.0);
-    float dBox = sdfBox(pos - float3(0, 0, 0), float3(0.5, 0.5, 0.5));
+    float dMorph;
+    {
+        float3 tmp = pos;
+        tmp.xy = rotate2d(tmp.xy, g_time * PI);
+        float dSphere = sdfSphere(tmp, 0.2);
+        float dBox = sdfBox(tmp - float3(0, 0, 0), float3(0.1, 0.1, 0.1));
 
-    float dMorph = lerp(dSphere, dBox, g_morphRate);
+        dMorph = lerp(dSphere, dBox, g_morphRate);
+    }
+
     if (dMorph < result.sdf)
     {
         result.sdf = dMorph;
@@ -132,20 +139,36 @@ RaycastResult scanRaycast(float3 pos, float3 dir)
 
 // -----------------------------------------------
 
+float3x3 rotateY(float angle)
+{
+    float c = cos(angle);
+    float s = sin(angle);
+    return float3x3(
+        c, 0, s,
+        0, 1, 0,
+       -s, 0, c
+    );
+}
+
+// -----------------------------------------------
+
 float4 PS(s3d::PSInput input) : SV_TARGET
 {
-    g_morphRate = (sin(g_time) + 1.0) * 0.5;
+    g_morphRate = (sin(g_time * 5.0f) + 1.0) * 0.5;
 
     // -----------------------------------------------
+    float3x3 cameraMat = rotateY(g_time * 0.5);
 
     float2 screenPos2 = input.position.xy;
     screenPos2 = (screenPos2 - g_resolution * 0.5) / g_resolution.y;
 
     float3 screenPos3 = float3(screenPos2.x, screenPos2.y, 0.0);
-
     float3 eyePos = float3(0, 0, -5);
 
-    float3 rayDir = normalize(float3(screenPos2.x, screenPos2.y, 1.0));
+    screenPos3 = mul(cameraMat, screenPos3);
+    eyePos = mul(cameraMat, eyePos);
+
+    float3 rayDir = normalize(screenPos3 - eyePos);
 
     RaycastResult r = scanRaycast(eyePos, rayDir);
 
