@@ -55,17 +55,34 @@ SdfAndMat emptySdfAndMat()
     return result;
 }
 
-SdfAndMat sdfSphere(float3 p, float r)
+float sdfSphere(float3 p, float r)
 {
-    SdfAndMat result;
-    result.sdf = length(p) - r;
-    result.mat = 1.0;
-    return result;
+    return length(p) - r;
 }
+
+float sdfBox(float3 p, float3 b)
+{
+    float3 d = abs(p) - b;
+    return length(max(d, 0.0)) + min(max(d.x, max(d.y, d.z)), 0.0);
+}
+
+static float g_morphRate = 0;
 
 SdfAndMat scanSdf(float3 pos)
 {
-    return sdfSphere(pos, 1.0);
+    SdfAndMat result = emptySdfAndMat();
+
+    float dSphere = sdfSphere(pos, 1.0);
+    float dBox = sdfBox(pos - float3(0, 0, 0), float3(0.5, 0.5, 0.5));
+
+    float dMorph = lerp(dSphere, dBox, g_morphRate);
+    if (dMorph < result.sdf)
+    {
+        result.sdf = dMorph;
+        result.mat = 1.0;
+    }
+
+    return result;
 }
 
 float3 scanNormal(float3 pos)
@@ -87,6 +104,8 @@ struct RaycastResult {
 
 #define MAX_DIST 1000.0
 
+#define MAX_RAYMARCH 64
+
 RaycastResult scanRaycast(float3 pos, float3 dir)
 {
     RaycastResult result;
@@ -94,7 +113,7 @@ RaycastResult scanRaycast(float3 pos, float3 dir)
     result.d = emptySdfAndMat();
 
     float t = 0;
-    for (int i = 0; i < 64; ++i)
+    for (int i = 0; i < MAX_RAYMARCH; ++i)
     {
         float3 p = pos + dir * t;
         SdfAndMat d = scanSdf(p);
@@ -115,7 +134,7 @@ RaycastResult scanRaycast(float3 pos, float3 dir)
 
 float4 PS(s3d::PSInput input) : SV_TARGET
 {
-    float3 color = float3(0, 0, 0);
+    g_morphRate = (sin(g_time) + 1.0) * 0.5;
 
     // -----------------------------------------------
 
@@ -130,6 +149,7 @@ float4 PS(s3d::PSInput input) : SV_TARGET
 
     RaycastResult r = scanRaycast(eyePos, rayDir);
 
+    float3 color = float3(0, 0, 0);
     if (r.d.mat > 0)
     {
         float3 normal = scanNormal(r.pos);
